@@ -5,105 +5,27 @@ import { MODULE_ADDRESS } from "@/constants";
 import { aptosClient } from "@/utils/aptosClient";
 import { InputViewFunctionData } from "@aptos-labs/ts-sdk";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
-import { Form, Input, InputNumber, message, Table, Tag, Typography } from "antd";
+import { Form, Input, Table, Typography } from "antd";
 import "dotenv/config";
 import { useEffect, useState } from "react";
+
 const { Column } = Table;
 const { Paragraph } = Typography;
 
-interface Job {
-  id: string;
-  description: string;
-  finders_fee: number;
-  title: string;
-  employer: string;
-  referrals: {
-    candidate: string;
-    is_hired: boolean;
-    referral_message: string;
-    referrer: string;
-  }[];
+interface LoyaltyPoints {
+  customer: string;
+  issuer: string;
+  points_balance: number;
 }
 
 export function MyCollections() {
-  const { account, signAndSubmitTransaction } = useWallet();
+  const { account } = useWallet();
+  const [allCustomers, setAllCustomers] = useState<LoyaltyPoints[]>([]);
+  const [pointsIssuedByBusiness, setPointsIssuedByBusiness] = useState<LoyaltyPoints[]>([]);
+  const [customerPoints, setCustomerPoints] = useState<number | null>(null);
 
-  const [jobsReferredBy, setJobsReferredBy] = useState<Job[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const convertAmountFromOnChainToHumanReadable = (value: number, decimal: number) => {
-    return value / Math.pow(10, decimal);
-  };
-
-  const handleReferCandidate = async (values: {
-    job_id: number;
-    candidate_address: string;
-    referral_message: string;
-  }) => {
-    try {
-      const transaction = await signAndSubmitTransaction({
-        sender: account?.address,
-        data: {
-          function: `${MODULE_ADDRESS}::JobReferralPlatform::refer_candidate`,
-          functionArguments: [values.job_id, values.candidate_address, values.referral_message],
-        },
-      });
-
-      await aptosClient().waitForTransaction({ transactionHash: transaction.hash });
-      message.success("Refer  Successful!");
-      fetchAllJobsONPlatform();
-      fetchAllJobsReferredBy();
-    } catch (error) {
-      if (typeof error === "object" && error !== null && "code" in error && (error as { code: number }).code === 4001) {
-        message.error("Transaction rejected by user.");
-      } else {
-        if (error instanceof Error) {
-          console.error(`Transaction failed: ${error.message}`);
-        } else {
-          console.error("Transaction failed: Unknown error");
-        }
-        console.error("Transaction Error:", error);
-      }
-      console.log("Error Purchasing Policy.", error);
-    }
-  };
-
-  const fetchAllJobsONPlatform = async () => {
-    try {
-      const payload: InputViewFunctionData = {
-        function: `${MODULE_ADDRESS}::JobReferralPlatform::view_all_jobs`,
-        functionArguments: [],
-      };
-
-      const result = await aptosClient().view({ payload });
-
-      const jobList = result[0];
-
-      if (Array.isArray(jobList)) {
-        setJobs(
-          jobList.map((job) => ({
-            id: job.id,
-            description: job.description,
-            finders_fee: job.finders_fee, // Assuming finders_fee is part of the job or default to 0
-            title: job.title, // Assuming title is part of the job or default to "Unknown"
-            employer: job.employer, // Assuming employer is the employer
-            referrals: job.referrals.map(
-              (referral: { candidate: string; is_hired: boolean; referral_message: string; referrer: string }) => ({
-                candidate: referral.candidate,
-                is_hired: referral.is_hired, // Assuming is_hired is equivalent to is_claimed
-                referral_message: referral.referral_message, // Assuming no referral message available
-                referrer: referral.referrer, // Assuming referrer is the referrer
-              }),
-            ),
-          })),
-        );
-      } else {
-        setJobs([]);
-      }
-    } catch (error) {
-      console.error("Failed to get Policies by address:", error);
-    }
-  };
-  const fetchAllJobsReferredBy = async () => {
+  // Fetch all loyalty points issued by the business
+  const fetchPointsIssuedByBusiness = async () => {
     try {
       const WalletAddr = account?.address;
       if (!WalletAddr) {
@@ -112,235 +34,112 @@ export function MyCollections() {
       }
 
       const payload: InputViewFunctionData = {
-        function: `${MODULE_ADDRESS}::JobReferralPlatform::view_referrals_by_referrer`,
+        function: `${MODULE_ADDRESS}::LoyaltyPointsSystem::view_points_issued_by_business`,
         functionArguments: [WalletAddr],
       };
 
       const result = await aptosClient().view({ payload });
+      const pointsList = result[0];
 
-      const jobList = result[0];
-
-      if (Array.isArray(jobList)) {
-        setJobsReferredBy(
-          jobList.map((job) => ({
-            id: job.id,
-            description: job.description,
-            finders_fee: job.finders_fee,
-            title: job.title,
-            employer: job.employer,
-            referrals: job.referrals.map(
-              (referral: { candidate: string; is_hired: boolean; referral_message: string; referrer: string }) => ({
-                candidate: referral.candidate,
-                is_hired: referral.is_hired,
-                referral_message: referral.referral_message,
-                referrer: referral.referrer,
-              }),
-            ),
+      if (Array.isArray(pointsList)) {
+        setPointsIssuedByBusiness(
+          (pointsList as LoyaltyPoints[]).map((points) => ({
+            customer: (points as LoyaltyPoints).customer,
+            issuer: (points as LoyaltyPoints).issuer,
+            points_balance: (points as LoyaltyPoints).points_balance,
           })),
         );
-      } else {
-        setJobsReferredBy([]);
       }
     } catch (error) {
-      console.error("Failed to get referrals by referrer:", error);
+      console.error("Failed to get points issued by business:", error);
+    }
+  };
+
+  // Fetch loyalty points for all customers
+  const fetchAllCustomersWithPoints = async () => {
+    try {
+      const payload: InputViewFunctionData = {
+        function: `${MODULE_ADDRESS}::LoyaltyPointsSystem::view_all_customers_with_points`,
+        functionArguments: [],
+      };
+
+      const result = await aptosClient().view({ payload });
+      const customersList = result[0];
+      setAllCustomers(customersList as LoyaltyPoints[]);
+      console.log(allCustomers);
+    } catch (error) {
+      console.error("Failed to get all customers with points:", error);
+    }
+  };
+
+  // Fetch points by a specific customer address
+  const fetchPointsByCustomer = async (customerAddress: string) => {
+    try {
+      const payload: InputViewFunctionData = {
+        function: `${MODULE_ADDRESS}::LoyaltyPointsSystem::view_points_by_customer`,
+        functionArguments: [customerAddress],
+      };
+
+      const result = await aptosClient().view({ payload });
+      const points = result[0] as number | null;
+
+      setCustomerPoints(points);
+    } catch (error) {
+      console.error("Failed to get points by customer:", error);
     }
   };
 
   useEffect(() => {
-    fetchAllJobsONPlatform();
-    fetchAllJobsReferredBy();
+    fetchAllCustomersWithPoints();
+    fetchPointsIssuedByBusiness();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account]);
 
   return (
     <>
-      <LaunchpadHeader title="All References" />
+      <LaunchpadHeader title="Loyalty Points Overview" />
       <div className="flex flex-col items-center justify-center px-4 py-2 gap-4 max-w-screen-xl mx-auto">
         <div className="w-full flex flex-col gap-y-4">
+          {/* View Points Issued by Business */}
           <Card>
             <CardHeader>
-              <CardDescription>All Available Policies</CardDescription>
+              <CardDescription>Points Issued by Business</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table dataSource={jobs} rowKey="id" className="max-w-screen-xl mx-auto">
-                <Column title="ID" dataIndex="id" />
-                <Column title="Title" dataIndex="title" responsive={["md"]} />
-                <Column
-                  title="Finder's Fee"
-                  dataIndex="finders_fee"
-                  render={(finders_fee: number) => convertAmountFromOnChainToHumanReadable(finders_fee, 8)}
-                  responsive={["md"]}
-                />
-                <Column title="Employer" dataIndex="employer" render={(employer: string) => employer.substring(0, 6)} />
-                <Column
-                  title="Description"
-                  dataIndex="description"
-                  responsive={["md"]}
-                  render={(description: string) => description.substring(0, 300)}
-                />
+              <Table dataSource={pointsIssuedByBusiness} rowKey="customer" className="max-w-screen-xl mx-auto">
+                <Column title="Customer" dataIndex="customer" />
+                <Column title="Points Balance" dataIndex="points_balance" />
               </Table>
             </CardContent>
           </Card>
 
+          {/* View Points by Customer */}
           <Card>
             <CardHeader>
-              <CardDescription>Refer Candidate</CardDescription>
+              <CardDescription>View Points by Customer Address</CardDescription>
             </CardHeader>
             <CardContent>
               <Form
-                onFinish={handleReferCandidate}
-                labelCol={{
-                  span: 4.04,
-                }}
-                wrapperCol={{
-                  span: 100,
-                }}
-                layout="horizontal"
-                style={{
-                  maxWidth: 1000,
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "0.5rem",
-                  padding: "1.7rem",
-                }}
+                onFinish={(values) => fetchPointsByCustomer(values.customer_address)}
+                layout="inline"
+                style={{ maxWidth: 600 }}
               >
-                <Form.Item
-                  label="Job ID"
-                  name="job_id"
-                  rules={[{ required: true, message: "Please input the job ID!" }]}
-                >
-                  <InputNumber min={1} placeholder="Job ID" style={{ width: "100%" }} />
+                <Form.Item label="Customer Address" name="customer_address" rules={[{ required: true }]}>
+                  <Input placeholder="Customer Address" />
                 </Form.Item>
-                <Form.Item
-                  label="Candidate Address"
-                  name="candidate_address"
-                  rules={[{ required: true, message: "Please input the candidate's address!" }]}
-                >
-                  <Input placeholder="Candidate Address" />
-                </Form.Item>
-                <Form.Item
-                  label="Referral Message"
-                  name="referral_message"
-                  rules={[{ required: true, message: "Please input the referral message!" }]}
-                >
-                  <Input.TextArea placeholder="Referral Message" rows={4} />
-                </Form.Item>
-
                 <Form.Item>
-                  <Button variant="submit" size="lg" className="text-base w-full" type="submit">
-                    Refer Candidate
+                  <Button variant="submit" size="lg" className="text-base" type="submit">
+                    View Points
                   </Button>
                 </Form.Item>
               </Form>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardDescription>Get Referrals by You</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="p-2">
-                {jobsReferredBy.length > 0 ? (
-                  jobsReferredBy.map((job, index) => (
-                    <Card key={index} className="mb-6 shadow-lg p-4">
-                      <p className="text-sm text-gray-500 mb-4">Job ID: {job.id}</p>
-                      <Paragraph>
-                        <strong>Title:</strong> {job.title}
-                      </Paragraph>
-                      <Paragraph>
-                        <strong>Employer:</strong> <Tag>{job.employer}</Tag>
-                      </Paragraph>
-                      <Paragraph>
-                        <strong>Finder's Fee:</strong>{" "}
-                        <Tag>{convertAmountFromOnChainToHumanReadable(job.finders_fee, 8)}</Tag>
-                      </Paragraph>
-                      <Paragraph>
-                        <strong>Description:</strong> {job.description}
-                      </Paragraph>
-                      <Paragraph>
-                        <strong>Referrals:</strong>
-                        {job.referrals.length > 0 ? (
-                          <Card style={{ marginTop: 16, padding: 16 }}>
-                            {job.referrals.map((referral, idx) => (
-                              <div key={idx} className="mb-4">
-                                <Paragraph>
-                                  <strong>Candidate:</strong> <Tag>{referral.candidate}</Tag>
-                                </Paragraph>
-                                <Paragraph>
-                                  <strong>Hired:</strong> <Tag>{referral.is_hired ? "Yes" : "No"}</Tag>
-                                </Paragraph>
-                                <Paragraph>
-                                  <strong>Referral Message:</strong> {referral.referral_message}
-                                </Paragraph>
-                                <Paragraph>
-                                  <strong>Referrer:</strong> <Tag>{referral.referrer}</Tag>
-                                </Paragraph>
-                              </div>
-                            ))}
-                          </Card>
-                        ) : (
-                          <Paragraph>No Referrals Found for this Job.</Paragraph>
-                        )}
-                      </Paragraph>
-                    </Card>
-                  ))
-                ) : (
-                  <Paragraph>No Jobs Referred by You.</Paragraph>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardDescription>All Jobs on the Platform</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="p-2">
-                {jobs.map((job, index) => (
-                  <Card key={index} className="mb-6 shadow-lg p-4">
-                    <p className="text-sm text-gray-500 mb-4">Job ID: {job.id}</p>
-                    <Paragraph>
-                      <strong>Title:</strong> {job.title}
-                    </Paragraph>
-                    <Paragraph>
-                      <strong>Employer:</strong> <Tag>{job.employer}</Tag>
-                    </Paragraph>
-                    <Paragraph>
-                      <strong>Finder's Fee:</strong>{" "}
-                      <Tag>{convertAmountFromOnChainToHumanReadable(job.finders_fee, 8)}</Tag>
-                    </Paragraph>
-                    <Paragraph>
-                      <strong>Description:</strong> {job.description}
-                    </Paragraph>
-                    <Paragraph>
-                      <strong>Referrals:</strong>
-                      {job.referrals.length > 0 ? (
-                        <Card style={{ marginTop: 16, padding: 16 }}>
-                          {job.referrals.map((referral, idx) => (
-                            <div key={idx} className="mb-4">
-                              <Paragraph>
-                                <strong>Candidate:</strong> <Tag>{referral.candidate}</Tag>
-                              </Paragraph>
-                              <Paragraph>
-                                <strong>Hired:</strong> <Tag>{referral.is_hired ? "Yes" : "No"}</Tag>
-                              </Paragraph>
-                              <Paragraph>
-                                <strong>Referral Message:</strong> {referral.referral_message}
-                              </Paragraph>
-                              <Paragraph>
-                                <strong>Referrer:</strong> <Tag>{referral.referrer}</Tag>
-                              </Paragraph>
-                            </div>
-                          ))}
-                        </Card>
-                      ) : (
-                        <Paragraph>No Referrals Found for this Job.</Paragraph>
-                      )}
-                    </Paragraph>
-                  </Card>
-                ))}
-              </div>
+              {customerPoints !== null && (
+                <div className="mt-4">
+                  <Paragraph>
+                    <strong>Points Balance:</strong> {customerPoints}
+                  </Paragraph>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

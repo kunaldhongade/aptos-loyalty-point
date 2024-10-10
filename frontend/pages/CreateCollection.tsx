@@ -6,26 +6,17 @@ import { MODULE_ADDRESS } from "@/constants";
 import { aptosClient } from "@/utils/aptosClient";
 import { InputViewFunctionData } from "@aptos-labs/ts-sdk";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
-import { Form, Input, InputNumber, message, Tag, Typography } from "antd";
+import { Form, Input, message, Tag } from "antd";
 import { useEffect, useState } from "react";
-const { Paragraph } = Typography;
 
 export function CreateCollection() {
   const { account, signAndSubmitTransaction } = useWallet();
-  const [jobsCreatedBy, setJobsCreatedBy] = useState<Job[]>([]);
+  const [pointsList, setPointsList] = useState<LoyaltyPoints[]>([]);
 
-  interface Job {
-    id: string;
-    description: string;
-    finders_fee: number;
-    title: string;
-    employer: string;
-    referrals: {
-      candidate: string;
-      is_hired: boolean;
-      referral_message: string;
-      referrer: string;
-    }[];
+  interface LoyaltyPoints {
+    customer: string;
+    issuer: string;
+    points_balance: number;
   }
 
   const convertAmountFromHumanReadableToOnChain = (value: number, decimal: number) => {
@@ -36,25 +27,21 @@ export function CreateCollection() {
     return value / Math.pow(10, decimal);
   };
 
-  const handleCreatePolicy = async (values: { finders_fee: number; title: string; description?: string }) => {
+  const handleIssueTokens = async (values: LoyaltyPoints) => {
     try {
-      const finderFee = convertAmountFromHumanReadableToOnChain(values.finders_fee, 8);
-
-      if (!values.description) {
-        values.description = "None";
-      }
+      const pointsAMT = convertAmountFromHumanReadableToOnChain(values.points_balance, 8);
 
       const transaction = await signAndSubmitTransaction({
         sender: account?.address,
         data: {
-          function: `${MODULE_ADDRESS}::JobReferralPlatform::create_job`,
-          functionArguments: [values.title, values.description, finderFee],
+          function: `${MODULE_ADDRESS}::LoyaltyPointsSystem::issue_points`,
+          functionArguments: [values.customer, pointsAMT],
         },
       });
 
       await aptosClient().waitForTransaction({ transactionHash: transaction.hash });
-      message.success("Job is Created Successfully!");
-      fetchAllJobsCreatedBy();
+      message.success("Token Issued Successfully!");
+      fetchAllPointsCreatedBy();
     } catch (error) {
       if (typeof error === "object" && error !== null && "code" in error && (error as { code: number }).code === 4001) {
         message.error("Transaction rejected by user.");
@@ -70,19 +57,19 @@ export function CreateCollection() {
     }
   };
 
-  const handleVerifyClaim = async (values: { job_id: number; candidate_address: string }) => {
+  const handleRedeemPoints = async (values: LoyaltyPoints) => {
     try {
       const transaction = await signAndSubmitTransaction({
         sender: account?.address,
         data: {
-          function: `${MODULE_ADDRESS}::JobReferralPlatform::confirm_hire`,
-          functionArguments: [values.job_id, values.candidate_address],
+          function: `${MODULE_ADDRESS}::LoyaltyPointsSystem::redeem_points`,
+          functionArguments: [values.customer, values.points_balance],
         },
       });
 
       await aptosClient().waitForTransaction({ transactionHash: transaction.hash });
       message.success("Candidate is Hired!");
-      fetchAllJobsCreatedBy();
+      fetchAllPointsCreatedBy();
     } catch (error) {
       if (typeof error === "object" && error !== null && "code" in error && (error as { code: number }).code === 4001) {
         message.error("Transaction rejected by user.");
@@ -98,38 +85,22 @@ export function CreateCollection() {
     }
   };
 
-  const fetchAllJobsCreatedBy = async () => {
+  const fetchAllPointsCreatedBy = async () => {
     try {
       const WalletAddr = account?.address;
       const payload: InputViewFunctionData = {
-        function: `${MODULE_ADDRESS}::JobReferralPlatform::view_jobs_by_employer`,
+        function: `${MODULE_ADDRESS}::LoyaltyPointsSystem::view_points_issued_by_business`,
         functionArguments: [WalletAddr],
       };
 
       const result = await aptosClient().view({ payload });
 
-      const jobList = result[0];
+      const pointsList = result[0] as LoyaltyPoints[];
 
-      if (Array.isArray(jobList)) {
-        setJobsCreatedBy(
-          jobList.map((job) => ({
-            id: job.id,
-            description: job.description,
-            finders_fee: job.finders_fee,
-            title: job.title,
-            employer: job.employer,
-            referrals: job.referrals.map(
-              (referral: { candidate: string; is_hired: boolean; referral_message: string; referrer: string }) => ({
-                candidate: referral.candidate,
-                is_hired: referral.is_hired,
-                referral_message: referral.referral_message,
-                referrer: referral.referrer,
-              }),
-            ),
-          })),
-        );
+      if (Array.isArray(pointsList)) {
+        setPointsList(pointsList);
       } else {
-        setJobsCreatedBy([]);
+        setPointsList([]);
       }
     } catch (error) {
       console.error("Failed to get Policies by address:", error);
@@ -137,9 +108,9 @@ export function CreateCollection() {
   };
 
   useEffect(() => {
-    fetchAllJobsCreatedBy();
+    fetchAllPointsCreatedBy();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account, fetchAllJobsCreatedBy]);
+  }, [account, fetchAllPointsCreatedBy]);
 
   return (
     <>
@@ -148,11 +119,11 @@ export function CreateCollection() {
         <div className="w-full flex flex-col gap-y-4">
           <Card>
             <CardHeader>
-              <CardDescription>Create Job</CardDescription>
+              <CardDescription>Issue Points</CardDescription>
             </CardHeader>
             <CardContent>
               <Form
-                onFinish={handleCreatePolicy}
+                onFinish={handleIssueTokens}
                 labelCol={{
                   span: 4.04,
                 }}
@@ -167,31 +138,15 @@ export function CreateCollection() {
                   padding: "1.7rem",
                 }}
               >
-                <Form.Item
-                  label="Job Title"
-                  name="title"
-                  rules={[{ required: true, message: "Please input the job title!" }]}
-                >
-                  <Input placeholder="Job Title" />
+                <Form.Item label="Customer Address" name="customer" rules={[{ required: true }]}>
+                  <Input />
                 </Form.Item>
-                <Form.Item
-                  label="Job Description"
-                  name="description"
-                  rules={[{ required: true, message: "Please input the job description!" }]}
-                >
-                  <Input.TextArea placeholder="Job Description" rows={4} />
+                <Form.Item label="Amount" name="points_balance" rules={[{ required: true }]}>
+                  <Input type="number" />
                 </Form.Item>
-                <Form.Item
-                  label="Finder's Fee (APT)"
-                  name="finders_fee"
-                  rules={[{ required: true, message: "Please input the finder's fee!" }]}
-                >
-                  <InputNumber min={1} placeholder="Finder's Fee" style={{ width: "100%" }} />
-                </Form.Item>
-
                 <Form.Item>
                   <Button variant="submit" size="lg" className="text-base w-full" type="submit">
-                    Create Job
+                    Issue Points
                   </Button>
                 </Form.Item>
               </Form>
@@ -200,11 +155,11 @@ export function CreateCollection() {
 
           <Card>
             <CardHeader>
-              <CardDescription>Hire Candidate</CardDescription>
+              <CardDescription>Redeem Points</CardDescription>
             </CardHeader>
             <CardContent>
               <Form
-                onFinish={handleVerifyClaim}
+                onFinish={handleRedeemPoints}
                 labelCol={{
                   span: 4.04,
                 }}
@@ -219,78 +174,41 @@ export function CreateCollection() {
                   padding: "1.7rem",
                 }}
               >
-                <Form.Item
-                  label="Job ID"
-                  name="job_id"
-                  rules={[{ required: true, message: "Please input the job ID!" }]}
-                >
-                  <InputNumber min={1} placeholder="Job ID" style={{ width: "100%" }} />
+                <Form.Item label="Customer Address" name="customer" rules={[{ required: true }]}>
+                  <Input />
                 </Form.Item>
-                <Form.Item
-                  label="Candidate Address"
-                  name="candidate_address"
-                  rules={[{ required: true, message: "Please input the candidate's address!" }]}
-                >
-                  <Input placeholder="Candidate Address" />
+                <Form.Item label="Amount" name="points_balance" rules={[{ required: true }]}>
+                  <Input type="number" />
                 </Form.Item>
-
                 <Form.Item>
                   <Button variant="submit" size="lg" className="text-base w-full" type="submit">
-                    Hire
+                    Issue Points
                   </Button>
                 </Form.Item>
               </Form>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader>
               <CardDescription>Get Jobs Created By You</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="p-2">
-                {jobsCreatedBy.map((job, index) => (
-                  <Card key={index} className="mb-6 shadow-lg p-4">
-                    <p className="text-sm text-gray-500 mb-4">Job ID: {job.id}</p>
-                    <Paragraph>
-                      <strong>Title:</strong> {job.title}
-                    </Paragraph>
-                    <Paragraph>
-                      <strong>Employer:</strong> <Tag>{job.employer}</Tag>
-                    </Paragraph>
-                    <Paragraph>
-                      <strong>Finder's Fee:</strong>{" "}
-                      <Tag>{convertAmountFromOnChainToHumanReadable(job.finders_fee, 8)}</Tag>
-                    </Paragraph>
-                    <Paragraph>
-                      <strong>Description:</strong> {job.description}
-                    </Paragraph>
-                    <Paragraph>
-                      <strong>Referrals:</strong>
-                      {job.referrals.length > 0 ? (
-                        <Card style={{ marginTop: 16, padding: 16 }}>
-                          {job.referrals.map((referral, idx) => (
-                            <div key={idx} className="mb-4">
-                              <Paragraph>
-                                <strong>Candidate:</strong> <Tag>{referral.candidate}</Tag>
-                              </Paragraph>
-                              <Paragraph>
-                                <strong>Hired:</strong> <Tag>{referral.is_hired ? "Yes" : "No"}</Tag>
-                              </Paragraph>
-                              <Paragraph>
-                                <strong>Referral Message:</strong> {referral.referral_message}
-                              </Paragraph>
-                              <Paragraph>
-                                <strong>Referrer:</strong> <Tag>{referral.referrer}</Tag>
-                              </Paragraph>
-                            </div>
-                          ))}
-                        </Card>
-                      ) : (
-                        <Paragraph>No Referrals Found for this Job.</Paragraph>
-                      )}
-                    </Paragraph>
-                  </Card>
+                {pointsList.map((point, index) => (
+                  <div key={index}>
+                    <Card style={{ marginBottom: "1rem" }}>
+                      <CardContent>
+                        <div className="m-3">
+                          <Tag color="blue">Customer</Tag>: <Tag>{point.customer}</Tag>
+                          <br />
+                          <Tag color="green">Issuer</Tag>: <Tag>{point.issuer}</Tag>
+                          <br />
+                          <Tag color="gold">Points Balance</Tag>:{" "}
+                          <Tag>{convertAmountFromOnChainToHumanReadable(point.points_balance, 8)}</Tag>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 ))}
               </div>
             </CardContent>
