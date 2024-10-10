@@ -3,7 +3,6 @@ module my_addrx::LoyaltyPointsSystem {
     use std::aptos_coin::AptosCoin;
     use std::signer;
     use std::vector;
-    use std::string::String;
 
     const ERR_CUSTOMER_NOT_FOUND: u64 = 1;
     const ERR_INSUFFICIENT_POINTS: u64 = 2;
@@ -53,10 +52,9 @@ module my_addrx::LoyaltyPointsSystem {
 
         let collection_ref = borrow_global_mut<GlobalPointsCollection>(global_address);
         let points_len = vector::length(&collection_ref.points);
-        let i = 0;
-        let is_existing_customer = false;
+        let  is_existing_customer = false;
+        let  i = 0;
 
-        // Check if the customer already has a loyalty points balance
         while (i < points_len) {
             let points_ref = vector::borrow_mut(&mut collection_ref.points, i);
             if (points_ref.customer == customer) {
@@ -67,7 +65,6 @@ module my_addrx::LoyaltyPointsSystem {
             i = i + 1;
         };
 
-        // If the customer is new, create a new loyalty points record
         if (!is_existing_customer) {
             let new_points = LoyaltyPoints {
                 customer: customer,
@@ -78,13 +75,11 @@ module my_addrx::LoyaltyPointsSystem {
         };
     }
 
-    // Redeem loyalty points (e.g., for rewards or services)
     public entry fun redeem_points(
         account: &signer,
         customer: address,
         amount: u64
     ) acquires GlobalPointsCollection {
-        let redeemer_address = signer::address_of(account);
         let global_address = Global_Points_List;
 
         assert!(exists<GlobalPointsCollection>(global_address), ERR_NO_POINTS_ISSUED);
@@ -96,13 +91,10 @@ module my_addrx::LoyaltyPointsSystem {
         while (i < points_len) {
             let points_ref = vector::borrow_mut(&mut collection_ref.points, i);
             if (points_ref.customer == customer) {
-                // Ensure the customer has enough points to redeem
                 assert!(points_ref.points_balance >= amount, ERR_INSUFFICIENT_POINTS);
 
-                // Deduct the redeemed points
                 points_ref.points_balance = points_ref.points_balance - amount;
 
-                // Example of redeeming by transferring rewards (APT tokens)
                 transfer<AptosCoin>(account, customer, amount);
                 return
             };
@@ -124,33 +116,33 @@ module my_addrx::LoyaltyPointsSystem {
 
         let collection_ref = borrow_global_mut<GlobalPointsCollection>(global_address);
         let points_len = vector::length(&collection_ref.points);
-        let sender_index = 0;
-        let recipient_index = 0;
         let is_sender_found = false;
         let is_recipient_found = false;
+        let i = 0;
 
-        // Find sender and recipient in the points list
-        while (sender_index < points_len) {
-            let sender_ref = vector::borrow_mut(&mut collection_ref.points, sender_index);
-            if (sender_ref.customer == sender_address) {
-                assert!(sender_ref.points_balance >= amount, ERR_INSUFFICIENT_POINTS);
-                sender_ref.points_balance = sender_ref.points_balance - amount;
+        // Find sender in the points list and deduct points
+        while (i < points_len) {
+            let points_ref = vector::borrow_mut(&mut collection_ref.points, i);
+            if (points_ref.customer == sender_address) {
+                assert!(points_ref.points_balance >= amount, ERR_INSUFFICIENT_POINTS);
+                points_ref.points_balance = points_ref.points_balance - amount;
                 is_sender_found = true;
                 break
             };
-            sender_index = sender_index + 1;
+            i = i + 1;
         };
         assert!(is_sender_found, ERR_CUSTOMER_NOT_FOUND);
 
-        // Add points to the recipient's balance
-        while (recipient_index < points_len) {
-            let recipient_ref = vector::borrow_mut(&mut collection_ref.points, recipient_index);
-            if (recipient_ref.customer == recipient) {
-                recipient_ref.points_balance = recipient_ref.points_balance + amount;
+        // Add points to the recipient's balance or create a new record
+        let j = 0;
+        while (j < points_len) {
+            let points_ref = vector::borrow_mut(&mut collection_ref.points, j);
+            if (points_ref.customer == recipient) {
+                points_ref.points_balance = points_ref.points_balance + amount;
                 is_recipient_found = true;
-                return
+                break
             };
-            recipient_index = recipient_index + 1;
+            j = j + 1;
         };
 
         // If recipient is new, create a new record
@@ -158,7 +150,7 @@ module my_addrx::LoyaltyPointsSystem {
             let new_points = LoyaltyPoints {
                 customer: recipient,
                 points_balance: amount,
-                issuer: sender_address, // Track the sender as the issuer here
+                issuer: sender_address,  // Track the sender as the issuer here
             };
             vector::push_back(&mut collection_ref.points, new_points);
         };
@@ -232,25 +224,5 @@ module my_addrx::LoyaltyPointsSystem {
 
         let collection_ref = borrow_global<GlobalPointsCollection>(global_address);
         collection_ref.points
-    }
-
-    #[view]
-    public fun view_total_points_issued_by_business(business: address): u64 acquires GlobalPointsCollection {
-        let global_address = Global_Points_List;
-        assert!(exists<GlobalPointsCollection>(global_address), ERR_NO_POINTS_ISSUED);
-
-        let collection_ref = borrow_global<GlobalPointsCollection>(global_address);
-        let points_len = vector::length(&collection_ref.points);
-        let i = 0;
-        let total = 0;
-
-        while (i < points_len) {
-            let points_ref = vector::borrow(&collection_ref.points, i);
-            if (points_ref.issuer == business) {
-                total = total + points_ref.points_balance;
-            };
-            i = i + 1;
-        };
-        total
     }
 }

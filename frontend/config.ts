@@ -5,22 +5,22 @@ import Placeholder3 from "@/assets/placeholders/bear-3.png";
 export const config: Config = {
   // Removing one or all of these socials will remove them from the page
   socials: {
-    twitter: "https://twitter.com/kunaldhongade",
+    twitter: "https://twitter.com/loyaltyplatform",
     discord: "https://discord.com",
-    homepage: "https://kunaldhongade.vercel.app",
+    homepage: "https://loyaltyplatform.vercel.app",
   },
 
   defaultCollection: {
-    name: "Job Referrals Collection",
-    description: "A collection of job referrals to help you find your next opportunity.",
+    name: "Loyalty Points Collection",
+    description: "A collection of loyalty points to reward our valued customers.",
     image: Placeholder1,
   },
 
   ourStory: {
     title: "Our Story",
-    subTitle: "Innovative Job Referral Platform on Aptos",
+    subTitle: "Revolutionizing Customer Loyalty on Aptos",
     description:
-      "Our platform connects job seekers with potential employers through trusted referrals. We aim to create a transparent and efficient job market. Join our community to get started!",
+      "Our platform rewards loyal customers with points that can be redeemed for exclusive benefits. Join our community and start earning rewards today!",
     discordLink: "https://discord.com",
     images: [Placeholder1, Placeholder2, Placeholder3],
   },
@@ -33,7 +33,7 @@ export const config: Config = {
         role: "Blockchain Developer",
         img: Placeholder1,
         socials: {
-          twitter: "https://twitter.com/kunaldhongade",
+          twitter: "https://twitter.com/loyaltyplatform",
         },
       },
       {
@@ -57,39 +57,42 @@ export const config: Config = {
 
     questions: [
       {
-        title: "What is a job referral?",
+        title: "What are loyalty points?",
         description:
-          "A job referral is a recommendation from a current employee or someone within the industry, suggesting a candidate for a job opening.",
+          "Loyalty points are rewards given to customers for their continued patronage. These points can be redeemed for various benefits and discounts.",
       },
       {
-        title: "How do I get referred for a job?",
-        description: `To get referred for a job, follow these steps:
-        Create a profile on our platform.
-        Connect with professionals in your desired industry.
-        Request referrals for job openings that match your skills and experience.`,
+        title: "How do I earn loyalty points?",
+        description: `To earn loyalty points, follow these steps:
+        Create an account on our platform.
+        Make purchases or engage with our services.
+        Accumulate points with each transaction.`,
       },
       {
-        title: "What are the benefits of job referrals?",
+        title: "What can I redeem with my loyalty points?",
         description:
-          "Job referrals can increase your chances of getting hired, as they come with a recommendation from a trusted source. They can also help you access job openings that may not be publicly advertised.",
+          "You can redeem your loyalty points for discounts, exclusive products, and special offers available on our platform.",
       },
       {
-        title: "How can I refer someone for a job?",
-        description: `To refer someone for a job, follow these steps:
-        Navigate to the "Refer a Candidate" section in the app.
-        Provide the candidate's details and the job opening information.
-        Submit your referral and track its status through the app.`,
+        title: "How can I check my loyalty points balance?",
+        description: `To check your loyalty points balance, follow these steps:
+        Log in to your account.
+        Navigate to the "My Points" section.
+        View your current points balance and transaction history.`,
       },
       {
-        title: "What should I do if I encounter an issue with my referral?",
-        description: `If you encounter an issue with your referral, consider the following:
-        Ensure that all details are correctly entered.
-        Refresh the app and check the referral status again.
+        title: "What should I do if I encounter an issue with my points?",
+        description: `If you encounter an issue with your points, consider the following:
+        Ensure that all transactions are correctly recorded.
+        Refresh the app and check your points balance again.
         Contact our support team for further assistance.`,
       },
       {
-        title: "How can I view my referral status?",
-        description: `You can view your referral status by navigating to the "My Referrals" section of the app. This section will display all your active referrals, including their current status and any feedback from employers.`,
+        title: "How can I refer a friend to the loyalty program?",
+        description: `To refer a friend to the loyalty program, follow these steps:
+        Navigate to the "Refer a Friend" section in the app.
+        Provide your friend's details and send the referral.
+        Earn bonus points when your friend joins and makes a purchase.`,
       },
     ],
   },
