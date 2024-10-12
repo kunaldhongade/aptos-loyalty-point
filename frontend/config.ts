@@ -5,7 +5,7 @@ import Placeholder3 from "@/assets/placeholders/bear-3.png";
 export const config: Config = {
   // Removing one or all of these socials will remove them from the page
   socials: {
-    twitter: "https://twitter.com/loyaltyplatform",
+    twitter: "https://twitter.com",
     discord: "https://discord.com",
     homepage: "https://loyaltyplatform.vercel.app",
   },
@@ -29,20 +29,20 @@ export const config: Config = {
     title: "Our Team",
     members: [
       {
-        name: "Kunal",
+        name: "Alex",
         role: "Blockchain Developer",
         img: Placeholder1,
         socials: {
-          twitter: "https://twitter.com/loyaltyplatform",
+          twitter: "https://twitter.com",
         },
       },
       {
-        name: "Soham",
+        name: "Jordan",
         role: "Marketing Specialist",
         img: Placeholder2,
       },
       {
-        name: "Amrita",
+        name: "Taylor",
         role: "Community Manager",
         img: Placeholder3,
         socials: {
